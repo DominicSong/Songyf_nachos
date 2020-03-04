@@ -39,6 +39,7 @@
 
 #include "copyright.h"
 #include "utility.h"
+#include <string.h>
 
 #ifdef USER_PROGRAM
 #include "machine.h"
@@ -59,8 +60,12 @@
 // Thread state
 enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
 
+extern char* getThreadStatus(ThreadStatus status, char *s);
+
 // external function, dummy routine whose sole job is to call Thread::Print
 extern void ThreadPrint(int arg);	 
+
+extern void* thread_pointer[128];
 
 // The following class defines a "thread control block" -- which
 // represents a single thread of execution.
@@ -79,9 +84,9 @@ class Thread {
     // THEY MUST be in this position for SWITCH to work.
     int* stackTop;			 // the current stack pointer
     int machineState[MachineStateSize];  // all registers except for stackTop
+    Thread(char* debugName);		// initialize a Thread 
 
   public:
-    Thread(char* debugName);		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -89,6 +94,15 @@ class Thread {
 
     // basic thread operations
 
+    static Thread* createThread(char* debugName) {
+      if (getCnt() >= max_thread) {
+        printf("WARNING: The number of thread cannot be over 128\n");
+        return NULL;
+      }
+      else {
+        return new Thread(debugName);
+      }
+    }
     void Fork(VoidFunctionPtr func, int arg); 	// Make thread run (*func)(arg)
     void Yield();  				// Relinquish the CPU if any 
 						// other thread is runnable
@@ -101,6 +115,35 @@ class Thread {
     void setStatus(ThreadStatus st) { status = st; }
     char* getName() { return (name); }
     void Print() { printf("%s, ", name); }
+    int getTid() { return tid; }
+    int getUid() { return uid; }
+    static int getCnt() { return thread_cnt; }
+    static int getNewId() {
+      for (int i = 0; i < max_thread; i++) {
+        if (valid_id[i] == 0) {
+          valid_id[i] = 1;
+          return i;
+        }
+      }
+    }
+    static void init() {
+      for (int i = 0; i < max_thread; i++) {
+        valid_id[i] = 0;
+      }
+    }
+    static void ts() {
+      printf("----------------------------------\n");
+      printf("tid uid            name status\n");
+      for (int i = 0; i < max_thread; i++) {
+        if (valid_id[i] != 0) {
+          Thread* tmp = (Thread*)thread_pointer[i];
+          char s[20];
+          getThreadStatus(tmp->status, s);
+          printf("%d   %d   %15s %s\n", tmp->tid, tmp->uid, tmp->name, s);
+        }
+      }
+      printf("----------------------------------\n");
+    }
 
   private:
     // some of the private data for this class is listed above
@@ -110,10 +153,17 @@ class Thread {
 					// (If NULL, don't deallocate stack)
     ThreadStatus status;		// ready, running or blocked
     char* name;
+    int tid;
+    int uid;
+    
+    static int thread_cnt;  // current number of thread
+    static int valid_id[128]; // number of thread in history, used to assign tid
+    static const int max_thread = 128;
 
     void StackAllocate(VoidFunctionPtr func, int arg);
     					// Allocate a stack for thread.
 					// Used internally by Fork()
+
 
 #ifdef USER_PROGRAM
 // A thread running a user program actually has *two* sets of CPU registers -- 

@@ -40,6 +40,9 @@ PostOffice *postOffice;
 extern void Cleanup();
 
 
+int Thread::thread_cnt = 0;
+int Thread::valid_id[128];
+
 //----------------------------------------------------------------------
 // TimerInterruptHandler
 // 	Interrupt handler for the timer device.  The timer device is
@@ -141,7 +144,9 @@ Initialize(int argc, char **argv)
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread
     // object to save its state. 
-    currentThread = new Thread("main");		
+
+    Thread::init();
+    currentThread = Thread::createThread("main");		
     currentThread->setStatus(RUNNING);
 
     interrupt->Enable();

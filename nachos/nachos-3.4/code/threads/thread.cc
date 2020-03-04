@@ -19,10 +19,13 @@
 #include "switch.h"
 #include "synch.h"
 #include "system.h"
+#include <string.h>
 
 #define STACK_FENCEPOST 0xdeadbeef	// this is put at the top of the
 					// execution stack, for detecting 
 					// stack overflows
+
+void* thread_pointer[128];
 
 //----------------------------------------------------------------------
 // Thread::Thread
@@ -35,6 +38,15 @@
 Thread::Thread(char* threadName)
 {
     name = threadName;
+
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    thread_cnt++;
+    
+    tid = getNewId();
+    thread_pointer[tid] = this;
+    uid = 0;
+    (void) interrupt->SetLevel(oldLevel);
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -60,9 +72,13 @@ Thread::~Thread()
     DEBUG('t', "Deleting thread \"%s\"\n", name);
 
     ASSERT(this != currentThread);
+    //printf("i will be delete. tid=%d\n", tid);
+
     if (stack != NULL)
 	DeallocBoundedArray((char *) stack, StackSize * sizeof(int));
 }
+
+
 
 //----------------------------------------------------------------------
 // Thread::Fork
@@ -148,6 +164,11 @@ Thread::Finish ()
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
+    //printf("i am finishing tid=%d\n", tid);
+    thread_cnt--;
+    valid_id[tid] = 0;
+    thread_pointer[tid] = NULL;
+    //printf("Thread_cnt now is %d\n", thread_cnt);
     threadToBeDestroyed = currentThread;
     Sleep();					// invokes SWITCH
     // not reached
@@ -183,9 +204,10 @@ Thread::Yield ()
     
     nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
-	scheduler->ReadyToRun(this);
-	scheduler->Run(nextThread);
+        scheduler->ReadyToRun(this);
+        scheduler->Run(nextThread);
     }
+    // 如果nextThread != NULL，下面这句话不会执行，直到调度器切换回本线程
     (void) interrupt->SetLevel(oldLevel);
 }
 
@@ -223,6 +245,25 @@ Thread::Sleep ()
 	interrupt->Idle();	// no one to run, wait for an interrupt
         
     scheduler->Run(nextThread); // returns when we've been signalled
+}
+
+
+char* getThreadStatus(ThreadStatus status, char *s) {
+  switch (status) {
+    case 0:
+      strcpy(s, "JUST_CREATED");
+      break;
+    case 1:
+      strcpy(s, "RUNNING");
+      break;
+    case 2:
+      strcpy(s, "READY");
+      break;
+    case 3:
+      strcpy(s, "BLOCKED");
+      break;
+  }
+  return s;
 }
 
 //----------------------------------------------------------------------

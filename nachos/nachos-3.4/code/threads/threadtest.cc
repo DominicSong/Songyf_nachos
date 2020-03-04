@@ -11,6 +11,8 @@
 
 #include "copyright.h"
 #include "system.h"
+#include <string.h>
+#include <stdio.h>
 
 // testnum is set in main.cc
 int testnum = 1;
@@ -46,9 +48,26 @@ ThreadTest1()
 {
     DEBUG('t', "Entering ThreadTest1");
 
-    Thread *t = new Thread("forked thread");
+    Thread *t = Thread::createThread("forked thread");
 
     t->Fork(SimpleThread, 1);
+    SimpleThread(0);
+}
+
+void
+ThreadTest2() {
+    DEBUG('t', "Entering ThreadTest2");
+
+    Thread *t[129];
+    for (int i = 0; i < 128; i++) {
+        char thread_name[20];
+        sprintf(thread_name, "forked thread %d", i + 1);
+        t[i] = Thread::createThread(thread_name);
+        if (t[i] != NULL) {
+            printf("i am thread %d\n", t[i]->getTid());
+            t[i]->Fork(SimpleThread, i + 1);
+        }
+    }
     SimpleThread(0);
 }
 
@@ -63,10 +82,13 @@ ThreadTest()
     switch (testnum) {
     case 1:
 	ThreadTest1();
+    Thread::ts();
 	break;
+    case 2:
+    ThreadTest2();
+    break;
     default:
 	printf("No test specified.\n");
 	break;
     }
 }
-

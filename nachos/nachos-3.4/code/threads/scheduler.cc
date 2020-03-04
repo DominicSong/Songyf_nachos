@@ -123,7 +123,7 @@ Scheduler::Run (Thread *nextThread)
     // point, we were still running on the old thread's stack!
     if (threadToBeDestroyed != NULL) {
         delete threadToBeDestroyed;
-	threadToBeDestroyed = NULL;
+	    threadToBeDestroyed = NULL;
     }
     
 #ifdef USER_PROGRAM
