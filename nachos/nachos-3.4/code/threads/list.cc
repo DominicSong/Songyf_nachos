@@ -184,20 +184,22 @@ List::SortedInsert(void *item, int sortKey)
     if (IsEmpty()) {	// if list is empty, put
         first = element;
         last = element;
-    } else if (sortKey < first->key) {	
+    } 
+    else if (sortKey < first->key) {	
 		// item goes on front of list
-	element->next = first;
-	first = element;
-    } else {		// look for first elt in list bigger than item
+        element->next = first;
+        first = element;
+    } 
+    else {		// look for first elt in list bigger than item
         for (ptr = first; ptr->next != NULL; ptr = ptr->next) {
             if (sortKey < ptr->next->key) {
-		element->next = ptr->next;
-	        ptr->next = element;
-		return;
+		        element->next = ptr->next;
+	            ptr->next = element;
+		        return;
+	        }
 	    }
-	}
-	last->next = element;		// item goes at end of list
-	last = element;
+        last->next = element;		// item goes at end of list
+        last = element;
     }
 }
 
@@ -221,12 +223,12 @@ List::SortedRemove(int *keyPtr)
     void *thing;
 
     if (IsEmpty()) 
-	return NULL;
+	    return NULL;
 
     thing = first->item;
     if (first == last) {	// list had one item, now has none 
         first = NULL;
-	last = NULL;
+	    last = NULL;
     } else {
         first = element->next;
     }
@@ -236,3 +238,18 @@ List::SortedRemove(int *keyPtr)
     return thing;
 }
 
+void *
+List::Head(int *keyPtr) {
+    //ListElement *element = first;
+    void *thing;
+
+    if (IsEmpty()) 
+	    return NULL;
+
+    thing = first->item;
+    
+    if (keyPtr != NULL)
+        *keyPtr = first->key;
+    //delete element;
+    return thing;
+}

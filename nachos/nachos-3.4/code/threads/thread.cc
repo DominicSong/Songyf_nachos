@@ -45,6 +45,7 @@ Thread::Thread(char* threadName)
     tid = getNewId();
     thread_pointer[tid] = this;
     uid = 0;
+    priority = 0;
     (void) interrupt->SetLevel(oldLevel);
 
     stackTop = NULL;
@@ -202,9 +203,10 @@ Thread::Yield ()
     
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
+    scheduler->ReadyToRun(this);
     nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
-        scheduler->ReadyToRun(this);
+        //scheduler->ReadyToRun(this);
         scheduler->Run(nextThread);
     }
     // 如果nextThread != NULL，下面这句话不会执行，直到调度器切换回本线程

@@ -117,6 +117,11 @@ class Thread {
     void Print() { printf("%s, ", name); }
     int getTid() { return tid; }
     int getUid() { return uid; }
+
+    int getPri() { return priority; }
+    void setPri(int pri) { priority = pri; }
+
+
     static int getCnt() { return thread_cnt; }
     static int getNewId() {
       for (int i = 0; i < max_thread; i++) {
@@ -159,6 +164,8 @@ class Thread {
     static int thread_cnt;  // current number of thread
     static int valid_id[128]; // number of thread in history, used to assign tid
     static const int max_thread = 128;
+
+    int priority;
 
     void StackAllocate(VoidFunctionPtr func, int arg);
     					// Allocate a stack for thread.

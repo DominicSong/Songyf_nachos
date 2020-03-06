@@ -71,6 +71,36 @@ ThreadTest2() {
     SimpleThread(0);
 }
 
+void
+ThreadTest3() {
+    DEBUG('t', "Entering ThreadTest2");
+    /*
+    Thread *t[3];
+    for (int i = 0; i < 3; i++) {
+        char thread_name[20];
+        sprintf(thread_name, "forked thread %d", i + 1);
+        t[i] = Thread::createThread(thread_name);
+        if (t[i] != NULL) {
+            //printf("i am thread %d\n", t[i]->getTid());
+            t[i]->setPri(3 - i);
+            t[i]->Fork(SimpleThread, i + 1);
+        }
+    }*/
+    Thread *t1 = Thread::createThread("thread1");
+    Thread *t2 = Thread::createThread("thread2");
+    Thread *t3 = Thread::createThread("thread3");
+    Thread *t4 = Thread::createThread("thread4");
+    t1->setPri(3);
+    t2->setPri(1);
+    t3->setPri(2);
+    t4->setPri(0);
+    t1->Fork(SimpleThread, 1);
+    t2->Fork(SimpleThread, 2);
+    t3->Fork(SimpleThread, 3);
+    t4->Fork(SimpleThread, 4);
+    currentThread->Yield();
+}
+
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
@@ -86,6 +116,9 @@ ThreadTest()
 	break;
     case 2:
     ThreadTest2();
+    break;
+    case 3:
+    ThreadTest3();
     break;
     default:
 	printf("No test specified.\n");
