@@ -32,7 +32,7 @@
 					// the disk sector size, for
 					// simplicity
 
-#define NumPhysPages    32
+#define NumPhysPages    64
 #define MemorySize 	(NumPhysPages * PageSize)
 #define TLBSize		4		// if there is a TLB, make it small
 
@@ -90,6 +90,16 @@ class Instruction {
     int extra;       // Immediate or target or shamt field or offset.
                      // Immediates are sign-extended.
 };
+
+class Bitmap {
+	public:
+		Bitmap();
+		int find();
+		void clear(int idx);
+		int map[NumPhysPages];
+};
+
+
 
 // The following class defines the simulated host workstation hardware, as 
 // seen by user programs -- the CPU registers, main memory, etc.
@@ -181,6 +191,10 @@ class Machine {
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
+	int TLBhit;
+	int TLBmiss;
+	Bitmap *bitmap;
+	int end;
 
   private:
     bool singleStep;		// drop back into the debugger after each

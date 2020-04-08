@@ -23,6 +23,7 @@
 #include "copyright.h"
 #include "interrupt.h"
 #include "system.h"
+#include <stdio.h>
 
 // String definitions for debugging messages
 
@@ -266,6 +267,8 @@ Interrupt::Schedule(VoidFunctionPtr handler, int arg, int fromNow, IntType type)
 {
     int when = stats->totalTicks + fromNow;
     PendingInterrupt *toOccur = new PendingInterrupt(handler, arg, when, type);
+
+    //printf("oooooop\n");
 
     DEBUG('i', "Scheduling interrupt handler the %s at time = %d\n", 
 					intTypeNames[type], when);

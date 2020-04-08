@@ -22,6 +22,10 @@
 #include "copyright.h"
 #include "timer.h"
 #include "system.h"
+#include <stdio.h>
+
+
+int Timer::TimeSlice[5] = {200, 160, 120, 80, 40};
 
 // dummy function because C++ does not allow pointers to member functions
 static void TimerHandler(int arg)
@@ -61,9 +65,12 @@ Timer::Timer(VoidFunctionPtr timerHandler, int callArg, bool doRandom)
 void 
 Timer::TimerExpired() 
 {
+    //printf("shit\n");
+    //currentThread->Yield();
     // schedule the next timer device interrupt
     interrupt->Schedule(TimerHandler, (int) this, TimeOfNextInterrupt(), 
 		TimerInt);
+
 
     // invoke the Nachos interrupt handler for this device
     (*handler)(arg);
@@ -78,8 +85,20 @@ Timer::TimerExpired()
 int 
 Timer::TimeOfNextInterrupt() 
 {
-    if (randomize)
-	return 1 + (Random() % (TimerTicks * 2));
-    else
-	return TimerTicks; 
+    /*
+    int pri = 0;
+    if (currentThread != NULL) {
+        pri = currentThread->getPri();
+        printf("Thread: %d Priority: %d\n", currentThread->getTid(), pri);
+    }
+    */
+    return TimerTicks;
+    if (randomize) {
+	    return 1 + (Random() % (TimerTicks * 2));
+        //return 1 + (Random() % (TimeSlice[pri] * 2));
+    }
+    else {
+	    return TimerTicks; 
+        //return TimeSlice[pri];
+    }
 }

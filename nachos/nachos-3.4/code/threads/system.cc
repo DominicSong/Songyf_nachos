@@ -7,6 +7,7 @@
 
 #include "copyright.h"
 #include "system.h"
+#include <stdio.h>
 
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
@@ -136,8 +137,10 @@ Initialize(int argc, char **argv)
     stats = new Statistics();			// collect statistics
     interrupt = new Interrupt;			// start up interrupt handling
     scheduler = new Scheduler();		// initialize the ready queue
-    if (randomYield)				// start the timer (if needed)
-	timer = new Timer(TimerInterruptHandler, 0, randomYield);
+    if (randomYield) {				// start the timer (if needed)
+	    timer = new Timer(TimerInterruptHandler, 0, randomYield);
+        printf("timer OK\n");
+    }
 
     threadToBeDestroyed = NULL;
 

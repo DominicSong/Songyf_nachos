@@ -56,9 +56,8 @@ Scheduler::ReadyToRun (Thread *thread)
     DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
-    //readyList->Append((void *)thread);
-    readyList->SortedInsert((void *)thread, thread->getPri());
-
+    readyList->Append((void *)thread);
+    //readyList->SortedInsert((void *)thread, thread->getPri());
 }
 
 //----------------------------------------------------------------------
@@ -74,6 +73,16 @@ Scheduler::FindNextToRun ()
 {
     //Print();
     //printf("\n");
+    /*
+    Thread *next = (Thread *)readyList->Remove();
+    if (next == NULL) return next;
+    int pri = next->getPri();
+    //const int bias[5] = {0, 10, 20, 30, 40};    // 100, 90, 80, 70, 60
+    //stats->totalTicks += bias[pri];
+    //stats->systemTicks += bias[pri];
+    //printf("Thread: %d Priority: %d, Tick: %d\n", next->getTid(), pri, stats->totalTicks);
+    return next;
+    */
     return (Thread *)readyList->Remove();
 }
 

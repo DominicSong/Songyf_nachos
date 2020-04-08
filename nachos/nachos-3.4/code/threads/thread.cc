@@ -39,14 +39,14 @@ Thread::Thread(char* threadName)
 {
     name = threadName;
 
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    //IntStatus oldLevel = interrupt->SetLevel(IntOff);
     thread_cnt++;
     
     tid = getNewId();
     thread_pointer[tid] = this;
     uid = 0;
     priority = 0;
-    (void) interrupt->SetLevel(oldLevel);
+    //(void) interrupt->SetLevel(oldLevel);
 
     stackTop = NULL;
     stack = NULL;
@@ -203,6 +203,9 @@ Thread::Yield ()
     
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
+    if (priority < 4)
+        priority++;
+    //printf("oooooops\n");
     scheduler->ReadyToRun(this);
     nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
@@ -244,7 +247,7 @@ Thread::Sleep ()
 
     status = BLOCKED;
     while ((nextThread = scheduler->FindNextToRun()) == NULL)
-	interrupt->Idle();	// no one to run, wait for an interrupt
+	    interrupt->Idle();	// no one to run, wait for an interrupt
         
     scheduler->Run(nextThread); // returns when we've been signalled
 }

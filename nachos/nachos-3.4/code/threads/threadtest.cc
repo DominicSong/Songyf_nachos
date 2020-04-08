@@ -13,6 +13,7 @@
 #include "system.h"
 #include <string.h>
 #include <stdio.h>
+#include "synch.h"
 
 // testnum is set in main.cc
 int testnum = 1;
@@ -37,6 +38,11 @@ SimpleThread(int which)
     }
 }
 
+void
+BarrierTest(int which) {
+    Barrier(5);
+}
+
 //----------------------------------------------------------------------
 // ThreadTest1
 // 	Set up a ping-pong between two threads, by forking a thread 
@@ -54,53 +60,141 @@ ThreadTest1()
     SimpleThread(0);
 }
 
+const int buffer_size = 4;
+Semaphore* empty = new Semaphore("empty", buffer_size);
+Semaphore* full = new Semaphore("full", 0);
+Condition* p_cond = new Condition("producer_condition");
+Condition* c_cond = new Condition("consumer_condition");
+Lock* mutex = new Lock("mutex");
+int buffer = 0;
+
+/*
+void Producer(int id) {
+    int cnt = 0;
+    while(cnt < 20) {
+        empty->P();
+        mutex->Acquire();
+        buffer++;
+        printf("$$$ I am producer %d. Buffer: %d\n", id, buffer);
+        mutex->Release();
+        full->V();
+        cnt++;
+    }
+}
+
+void Consumer(int id) {
+    int cnt = 0;
+    while(cnt < 10) {
+        full->P();
+        mutex->Acquire();
+        buffer--;
+        printf("### I am consumer %d. Buffer: %d\n", id, buffer);
+        mutex->Release();
+        empty->V();
+        cnt++;
+    }
+}
+*/
+
+void Producer(int id) {
+    int cnt = 0;
+    while(cnt < 20) {
+        mutex->Acquire();
+        while (buffer >= buffer_size) {
+            p_cond->Wait(mutex);
+        }
+        buffer++;
+        printf("$$$ I am producer %d. Buffer: %d\n", id, buffer);
+
+        c_cond->Signal(mutex);
+        mutex->Release();
+        cnt++;
+    }
+}
+
+void Consumer(int id) {
+    int cnt = 0; 
+    while(cnt < 10) {
+        mutex->Acquire();
+        while(buffer <= 0) {
+            c_cond->Wait(mutex);
+        }
+        buffer--;
+        printf("### I am consumer %d. Buffer: %d\n", id, buffer);
+
+        p_cond->Signal(mutex);
+        mutex->Release();
+        cnt++;
+    }
+}
+
 void
 ThreadTest2() {
     DEBUG('t', "Entering ThreadTest2");
 
-    Thread *t[129];
-    for (int i = 0; i < 128; i++) {
-        char thread_name[20];
-        sprintf(thread_name, "forked thread %d", i + 1);
-        t[i] = Thread::createThread(thread_name);
-        if (t[i] != NULL) {
-            printf("i am thread %d\n", t[i]->getTid());
-            t[i]->Fork(SimpleThread, i + 1);
-        }
-    }
-    SimpleThread(0);
+    Thread* p1 = Thread::createThread("Producer1");
+    //Thread* p2 = Thread::createThread("Producer2");
+    p1->Fork(Producer, 1);
+    //p2->Fork(Producer, 2);
+    Thread* c1 = Thread::createThread("Consumer1");
+    Thread* c2 = Thread::createThread("Consumer2");
+    c1->Fork(Consumer, 1);
+    c2->Fork(Consumer, 2);
+
+    currentThread->Yield();
 }
 
 void
 ThreadTest3() {
-    DEBUG('t', "Entering ThreadTest2");
-    /*
-    Thread *t[3];
-    for (int i = 0; i < 3; i++) {
-        char thread_name[20];
-        sprintf(thread_name, "forked thread %d", i + 1);
-        t[i] = Thread::createThread(thread_name);
-        if (t[i] != NULL) {
-            //printf("i am thread %d\n", t[i]->getTid());
-            t[i]->setPri(3 - i);
-            t[i]->Fork(SimpleThread, i + 1);
-        }
-    }*/
-    Thread *t1 = Thread::createThread("thread1");
-    Thread *t2 = Thread::createThread("thread2");
-    Thread *t3 = Thread::createThread("thread3");
-    Thread *t4 = Thread::createThread("thread4");
-    t1->setPri(3);
-    t2->setPri(1);
-    t3->setPri(2);
-    t4->setPri(0);
-    t1->Fork(SimpleThread, 1);
-    t2->Fork(SimpleThread, 2);
-    t3->Fork(SimpleThread, 3);
-    t4->Fork(SimpleThread, 4);
+    DEBUG('t', "Entering ThreadTest3");
+    Thread *t[5];
+    for (int i = 0; i < 5; i++) {
+        t[i] = Thread::createThread("testBarrier");
+        t[i]->Fork(BarrierTest, i);
+    }
     currentThread->Yield();
 }
 
+RWLock *rwlock = new RWLock("RW lock");
+
+void Reader(int id) {
+    for (int i = 0; i < 5; i++) {
+        rwlock->rP();
+        if (buffer == 0) {
+            printf("Reader %d, no data to read\n", id);
+        }
+        else {
+            printf("Reader %d, read successfully!\n", id);
+        }
+        rwlock->rV();
+        currentThread->Yield();
+    }
+}
+
+void Writer(int id) {
+    for (int i = 0; i < 5; i++) {
+        rwlock->wP();
+        buffer++;
+        printf("Writer %d, write successfully!\n", id);
+        rwlock->wV();
+        currentThread->Yield();
+    }
+}
+
+
+void
+ThreadTest4() {
+    DEBUG('t', "Entering ThreadTest4");
+    Thread* r1 = Thread::createThread("Reader1");
+    Thread* w1 = Thread::createThread("Writer1");
+    Thread* r2 = Thread::createThread("Reader2");
+    //Thread* w2 = Thread::createThread("Writer2");
+    r1->Fork(Reader, 1);
+    w1->Fork(Writer, 1);
+    r2->Fork(Reader, 2);
+    //w2->Fork(Writer, 2);
+    currentThread->Yield();
+}
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
@@ -111,15 +205,9 @@ ThreadTest()
 {
     switch (testnum) {
     case 1:
-	ThreadTest1();
-    Thread::ts();
+	ThreadTest4();
+    //Thread::ts();
 	break;
-    case 2:
-    ThreadTest2();
-    break;
-    case 3:
-    ThreadTest3();
-    break;
     default:
 	printf("No test specified.\n");
 	break;

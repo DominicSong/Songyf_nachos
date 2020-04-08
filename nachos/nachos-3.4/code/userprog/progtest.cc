@@ -13,6 +13,32 @@
 #include "console.h"
 #include "addrspace.h"
 #include "synch.h"
+#include <stdio.h>
+
+void MultiThreadTest(int which){
+    char filename[10] = "test";
+    OpenFile *executable = fileSystem->Open(filename);
+    AddrSpace *space;
+
+    if (executable == NULL) {
+        printf("Unable to open file %s\n", filename);
+        return;
+    }
+    space = new AddrSpace(executable);    
+    currentThread->space = space;
+
+    delete executable;			// close file
+
+    space->InitRegisters();		// set the initial register values
+    space->RestoreState();		// load page table register
+    printf("Thread 2 is running...\n");
+    machine->Run();			// jump to the user progam
+    printf("Thread 2 is ended...\n");
+    //ASSERT(FALSE);			// machine->Run never returns;
+					// the address space exits
+					// by doing the syscall "exit"
+}
+
 
 //----------------------------------------------------------------------
 // StartProcess
@@ -27,8 +53,8 @@ StartProcess(char *filename)
     AddrSpace *space;
 
     if (executable == NULL) {
-	printf("Unable to open file %s\n", filename);
-	return;
+        printf("Unable to open file %s\n", filename);
+        return;
     }
     space = new AddrSpace(executable);    
     currentThread->space = space;
@@ -38,7 +64,14 @@ StartProcess(char *filename)
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register
 
+    /*
+    Thread* t = Thread::createThread("multi test");
+    t->Fork(MultiThreadTest, 1);
+    currentThread->Yield();
+    */
+    printf("Thread 1 is running...\n");
     machine->Run();			// jump to the user progam
+    printf("Thread 1 is ended...\n");
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits
 					// by doing the syscall "exit"

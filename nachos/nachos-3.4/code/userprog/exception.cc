@@ -24,6 +24,12 @@
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
+#include "machine.h"
+#include "translate.h"
+#include <stdio.h>
+#include "openfile.h"
+
+#define LRU
 
 //----------------------------------------------------------------------
 // ExceptionHandler
@@ -54,10 +60,109 @@ ExceptionHandler(ExceptionType which)
     int type = machine->ReadRegister(2);
 
     if ((which == SyscallException) && (type == SC_Halt)) {
-	DEBUG('a', "Shutdown, initiated by user program.\n");
-   	interrupt->Halt();
-    } else {
-	printf("Unexpected user mode exception %d %d\n", which, type);
-	ASSERT(FALSE);
+        DEBUG('a', "Shutdown, initiated by user program.\n");
+        interrupt->Halt();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Exit)) {
+        for (int i = 0; i < machine->pageTableSize; i++) {
+            if (machine->pageTable[i].valid == TRUE) {
+                int idx = machine->pageTable[i].physicalPage;
+                machine->bitmap->clear(idx);
+            }
+        }
+
+        //printf("TLB hits: %d\n", machine->TLBhit);
+        //printf("TLB miss: %d\n", machine->TLBmiss);
+        //float rate = (float)machine->TLBhit / (machine->TLBmiss + machine->TLBhit);
+        //printf("TLB hit rate: %f\n", rate);
+        //machine->end = 1;
+        //currentThread->Finish();
+        interrupt->Halt();
+    }
+
+    else if (which == PageFaultException) {
+        int method = 0;
+        if (machine->tlb == NULL) {
+            OpenFile *openfile = fileSystem->Open("virtual_memory");
+            if (openfile == NULL) ASSERT(false);
+            int virtAddr = machine->registers[BadVAddrReg];
+            unsigned int vpn = (unsigned) virtAddr / PageSize;
+            unsigned int offset = (unsigned) virtAddr % PageSize;
+            int pos = machine->bitmap->find();
+
+            if (pos == -1) {
+                pos = 0;
+                for (int j = 0; j < machine->pageTableSize; j++) {
+                    if (machine->pageTable[j].physicalPage == 0) {
+                        if (machine->pageTable[j].dirty == TRUE) {
+                            openfile->WriteAt(&(machine->mainMemory[pos * PageSize]),
+                                PageSize, machine->pageTable[j].virtualPage * PageSize);
+                            machine->pageTable[j].valid = FALSE;
+                            break;
+                        }
+                    }
+                }
+            }
+            printf("PageFault vpn %d pos %d\n", vpn, pos);
+            openfile->ReadAt(&(machine->mainMemory[pos * PageSize]), PageSize, vpn * PageSize);
+            machine->pageTable[pos].valid = TRUE;
+            machine->pageTable[pos].virtualPage = vpn;
+            //machine->pageTable[vpn].physicalPage = pos;
+            machine->pageTable[pos].use = FALSE;
+            machine->pageTable[pos].dirty = FALSE;
+            machine->pageTable[pos].readOnly = FALSE;
+            delete openfile;
+        }
+        else {
+            TranslationEntry *entry, *tlb;
+            int virtAddr = machine->registers[BadVAddrReg];
+            unsigned int vpn = (unsigned) virtAddr / PageSize;
+            unsigned int offset = (unsigned) virtAddr % PageSize;
+            entry = &machine->pageTable[vpn];
+            tlb = machine->tlb;
+            bool flag = false;
+
+            for (int i = 0; i < TLBSize; i++) {
+                if (tlb[i].valid) {
+                    tlb[i].cnt++;
+                }
+            }
+
+            for (int i = 0; i < TLBSize; i++) {
+                if (!tlb[i].valid) {
+                    tlb[i].valid = true;
+                    tlb[i].virtualPage = entry->virtualPage;
+                    tlb[i].physicalPage = entry->physicalPage;
+                    tlb[i].readOnly = entry->readOnly;
+                    tlb[i].use = false;
+                    tlb[i].dirty = false;
+                    tlb[i].cnt = 0;
+
+                    flag = true;
+                    break;
+                }
+            }
+            if (!flag) {
+                int maxcnt = 0;
+                int maxidx = -1;
+                for (int i = 0; i < TLBSize; i++) {
+                    if (tlb[i].cnt > maxcnt) {
+                        maxcnt = tlb[i].cnt;
+                        maxidx = i;
+                    }
+                }
+                tlb[maxidx].virtualPage = entry->virtualPage;
+                tlb[maxidx].physicalPage = entry->physicalPage;
+                tlb[maxidx].readOnly = entry->readOnly;
+                tlb[maxidx].use = false;
+                tlb[maxidx].dirty = false;
+                tlb[maxidx].cnt = 0;
+            }
+        }
+    }
+    else {
+        printf("Unexpected user mode exception %d %d\n", which, type);
+        ASSERT(FALSE);
     }
 }

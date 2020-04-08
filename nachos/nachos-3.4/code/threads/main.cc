@@ -115,6 +115,7 @@ PrintHello();
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
 #ifdef USER_PROGRAM
+		//printf("shitshitshitshit\n");
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
             StartProcess(*(argv + 1));
@@ -131,6 +132,7 @@ PrintHello();
 					// Nachos will loop forever waiting 
 					// for console input
 		}
+		
 #endif // USER_PROGRAM
 #ifdef FILESYS
 		if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos

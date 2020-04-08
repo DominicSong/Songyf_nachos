@@ -79,6 +79,8 @@ class Lock {
 
   private:
     char* name;				// for debugging
+    Thread* owner;
+    Semaphore* lock;
     // plus some other stuff you'll need to define
 };
 
@@ -131,6 +133,26 @@ class Condition {
 
   private:
     char* name;
+    List* queue;
     // plus some other stuff you'll need to define
 };
 #endif // SYNCH_H
+
+void Barrier(int num);
+
+class RWLock {
+  public:
+    RWLock(char *debugName);
+    ~RWLock();
+    char *getName() { return (name); }
+    void rP();
+    void rV();
+    void wP();
+    void wV();
+
+  private:
+    char *name;
+    int rcnt;
+    Lock *rlock;
+    Lock *wlock;
+};
