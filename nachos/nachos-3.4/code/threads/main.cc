@@ -89,9 +89,9 @@ main(int argc, char **argv)
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv);
 
-    
+/*  
 #ifdef THREADS
-PrintHello();
+//PrintHello();
 #endif
 
 #ifdef THREADS
@@ -109,11 +109,12 @@ PrintHello();
     }
     ThreadTest();
 #endif
-
+*/
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
 		argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
+/*
 #ifdef USER_PROGRAM
 		//printf("shitshitshitshit\n");
         if (!strcmp(*argv, "-x")) {        	// run a user program
@@ -134,7 +135,9 @@ PrintHello();
 		}
 		
 #endif // USER_PROGRAM
+*/
 #ifdef FILESYS
+		//printf("file system onfff!\n");
 		if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
 			ASSERT(argc > 2);
 			Copy(*(argv + 1), *(argv + 2));

@@ -40,7 +40,7 @@ Directory::Directory(int size)
     table = new DirectoryEntry[size];
     tableSize = size;
     for (int i = 0; i < tableSize; i++)
-	table[i].inUse = FALSE;
+	    table[i].inUse = FALSE;
 }
 
 //----------------------------------------------------------------------
@@ -90,9 +90,12 @@ Directory::WriteBack(OpenFile *file)
 int
 Directory::FindIndex(char *name)
 {
-    for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen))
-	    return i;
+    //printf("I am finding %s\n", name);
+    for (int i = 0; i < tableSize; i++) {
+        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen)) {
+	        return i;
+        }
+    }
     return -1;		// name not in directory
 }
 
@@ -169,9 +172,11 @@ Directory::Remove(char *name)
 void
 Directory::List()
 {
-   for (int i = 0; i < tableSize; i++)
-	if (table[i].inUse)
-	    printf("%s\n", table[i].name);
+    printf("\nIN DIRECTORY TABLE:\n");
+    for (int i = 0; i < tableSize; i++)
+        if (table[i].inUse)
+            printf("%s\n", table[i].name);
+    printf("END\n\n");
 }
 
 //----------------------------------------------------------------------

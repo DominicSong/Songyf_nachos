@@ -181,7 +181,7 @@ void Barrier(int max_num) {
     printf("Process %d continue...\n", currentThread->getTid());
 }
 
-
+/*
 RWLock::RWLock(char *debugName) {
     name = debugName;
     rcnt = 0;
@@ -219,3 +219,4 @@ void RWLock::wP() {
 void RWLock::wV() {
     wlock->Release();
 }
+*/

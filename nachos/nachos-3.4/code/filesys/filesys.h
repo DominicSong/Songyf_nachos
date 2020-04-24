@@ -86,10 +86,11 @@ class FileSystem {
     void Print();			// List all the files and their contents
 
   private:
-   OpenFile* freeMapFile;		// Bit map of free disk blocks,
-					// represented as a file
-   OpenFile* directoryFile;		// "Root" directory -- list of 
-					// file names, represented as a file
+	OpenFile* freeMapFile;		// Bit map of free disk blocks,
+						// represented as a file
+	OpenFile* directoryFile;		// "Root" directory -- list of 
+						// file names, represented as a file
+	OpenFile* nameFile;
 };
 
 #endif // FILESYS

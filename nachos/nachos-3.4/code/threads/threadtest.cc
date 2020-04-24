@@ -60,6 +60,7 @@ ThreadTest1()
     SimpleThread(0);
 }
 
+/*
 const int buffer_size = 4;
 Semaphore* empty = new Semaphore("empty", buffer_size);
 Semaphore* full = new Semaphore("full", 0);
@@ -68,7 +69,7 @@ Condition* c_cond = new Condition("consumer_condition");
 Lock* mutex = new Lock("mutex");
 int buffer = 0;
 
-/*
+
 void Producer(int id) {
     int cnt = 0;
     while(cnt < 20) {
@@ -94,7 +95,7 @@ void Consumer(int id) {
         cnt++;
     }
 }
-*/
+
 
 void Producer(int id) {
     int cnt = 0;
@@ -195,6 +196,7 @@ ThreadTest4() {
     //w2->Fork(Writer, 2);
     currentThread->Yield();
 }
+*/
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
@@ -205,7 +207,7 @@ ThreadTest()
 {
     switch (testnum) {
     case 1:
-	ThreadTest4();
+	//ThreadTest4();
     //Thread::ts();
 	break;
     default:

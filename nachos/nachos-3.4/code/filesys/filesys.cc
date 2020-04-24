@@ -50,12 +50,15 @@
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
+#include <string.h>
+#include <stdio.h>
 
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known 
 // sectors, so that they can be located on boot-up.
 #define FreeMapSector 		0
 #define DirectorySector 	1
+#define NameSector          2
 
 // Initial file sizes for the bitmap and directory; until the file system
 // supports extensible files, the directory size sets the maximum number 
@@ -85,6 +88,7 @@ FileSystem::FileSystem(bool format)
         Directory *directory = new Directory(NumDirEntries);
         FileHeader *mapHdr = new FileHeader;
         FileHeader *dirHdr = new FileHeader;
+        FileHeader *nameHdr = new FileHeader;
 
         DEBUG('f', "Formatting the file system.\n");
 
@@ -92,12 +96,14 @@ FileSystem::FileSystem(bool format)
         // (make sure no one else grabs these!)
         freeMap->Mark(FreeMapSector);	    
         freeMap->Mark(DirectorySector);
+        freeMap->Mark(NameSector);
 
         // Second, allocate space for the data blocks containing the contents
         // of the directory and bitmap files.  There better be enough space!
 
         ASSERT(mapHdr->Allocate(freeMap, FreeMapFileSize));
         ASSERT(dirHdr->Allocate(freeMap, DirectoryFileSize));
+        ASSERT(nameHdr->Allocate(freeMap, NameSector));
 
         // Flush the bitmap and directory FileHeaders back to disk
         // We need to do this before we can "Open" the file, since open
@@ -107,6 +113,7 @@ FileSystem::FileSystem(bool format)
         DEBUG('f', "Writing headers back to disk.\n");
         mapHdr->WriteBack(FreeMapSector);    
         dirHdr->WriteBack(DirectorySector);
+        nameHdr->WriteBack(NameSector);
 
         // OK to open the bitmap and directory files now
         // The file system operations assume these two files are left open
@@ -114,6 +121,7 @@ FileSystem::FileSystem(bool format)
 
         freeMapFile = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
+        nameFile = new OpenFile(NameSector);
      
         // Once we have the files "open", we can write the initial version
         // of each file back to disk.  The directory at this point is completely
@@ -140,6 +148,7 @@ FileSystem::FileSystem(bool format)
     // the bitmap and directory; these are left open while Nachos is running
         freeMapFile = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
+        nameFile = new OpenFile(NameSector);
     }
 }
 
@@ -199,18 +208,38 @@ FileSystem::Create(char *name, int initialSize)
         else {
             hdr = new FileHeader;
             if (!hdr->Allocate(freeMap, initialSize))
-                    success = FALSE;	// no space on disk for data
+                success = FALSE;	// no space on disk for data
             else {	
+                int dot_pos = 0;
+                for (; dot_pos < strlen(name); dot_pos++) {
+                    if (name[dot_pos] == '.')
+                        break;
+                }
+                int tmp = 0;
+                for (int i = dot_pos + 1; i < strlen(name); i++) {
+                    hdr->type[tmp] = name[i];
+                    tmp++;
+                }
+                hdr->type[tmp] = '\0';
+                hdr->SetTime('c');
+                hdr->SetTime('v');
+                hdr->SetTime('m');
+                hdr->sectorNumber = sector;
+                
+                //printf("ok!!!!!!!!!!!!!\n");
+
                 success = TRUE;
                 // everthing worked, flush all changes back to disk
                 hdr->WriteBack(sector); 		
                 directory->WriteBack(directoryFile);
                 freeMap->WriteBack(freeMapFile);
             }
-                delete hdr;
+            delete hdr;
         }
         delete freeMap;
     }
+
+    //directory->List();
     delete directory;
     return success;
 }
@@ -234,9 +263,12 @@ FileSystem::Open(char *name)
 
     DEBUG('f', "Opening file %s\n", name);
     directory->FetchFrom(directoryFile);
+    //directory->List();
     sector = directory->Find(name); 
-    if (sector >= 0) 		
+    if (sector >= 0) {	
+        //printf("Find!\n");
 	    openFile = new OpenFile(sector);	// name was found in directory 
+    }
     delete directory;
     return openFile;				// return NULL if not found
 }

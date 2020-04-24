@@ -139,7 +139,7 @@ class Condition {
 #endif // SYNCH_H
 
 void Barrier(int num);
-
+/*
 class RWLock {
   public:
     RWLock(char *debugName);
@@ -156,3 +156,4 @@ class RWLock {
     Lock *rlock;
     Lock *wlock;
 };
+*/

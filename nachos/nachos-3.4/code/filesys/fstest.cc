@@ -50,9 +50,9 @@ Copy(char *from, char *to)
 // Create a Nachos file of the same length
     DEBUG('f', "Copying file %s, size %d, to file %s\n", from, fileLength, to);
     if (!fileSystem->Create(to, fileLength)) {	 // Create Nachos file
-	printf("Copy: couldn't create output file %s\n", to);
-	fclose(fp);
-	return;
+        printf("Copy: couldn't create output file %s\n", to);
+        fclose(fp);
+        return;
     }
     
     openFile = fileSystem->Open(to);
@@ -64,6 +64,7 @@ Copy(char *from, char *to)
 	openFile->Write(buffer, amountRead);	
     delete [] buffer;
 
+    openFile->Print();
 // Close the UNIX and the Nachos files
     delete openFile;
     fclose(fp);
@@ -82,15 +83,19 @@ Print(char *name)
     char *buffer;
 
     if ((openFile = fileSystem->Open(name)) == NULL) {
-	printf("Print: unable to open file %s\n", name);
-	return;
+        printf("Print: unable to open file %s\n", name);
+        return;
     }
     
+    //openFile->Print();
+
     buffer = new char[TransferSize];
     while ((amountRead = openFile->Read(buffer, TransferSize)) > 0)
 	for (i = 0; i < amountRead; i++)
 	    printf("%c", buffer[i]);
     delete [] buffer;
+
+    openFile->Print();
 
     delete openFile;		// close the Nachos file
     return;

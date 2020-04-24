@@ -17,7 +17,8 @@
 #include "disk.h"
 #include "bitmap.h"
 
-#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int))
+// SectorSize = 128
+#define NumDirect 	((SectorSize - 2 * sizeof(int) - 84) / sizeof(int)) // 9
 #define MaxFileSize 	(NumDirect * SectorSize)
 
 // The following class defines the Nachos "file header" (in UNIX terms,  
@@ -56,11 +57,20 @@ class FileHeader {
 
     void Print();			// Print the contents of the file.
 
+    void SetTime(char mode);
+
   private:
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file
     int dataSectors[NumDirect];		// Disk sector numbers for each data 
 					// block in the file
+  public:
+    char type[5];
+    char create_time[25];
+    char last_v_time[25];
+    char last_m_time[25];
+
+    int sectorNumber;
 };
 
 #endif // FILEHDR_H
