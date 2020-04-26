@@ -86,7 +86,7 @@ class OpenFile {
 					// than the UNIX idiom -- lseek to 
 					// end of file, tell, lseek back 
 
-	void Print();
+	int Print();
     
   private:
     FileHeader *hdr;			// Header for this file 

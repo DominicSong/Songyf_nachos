@@ -49,8 +49,15 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 	    return FALSE;		// not enough space
 
     if (numSectors < NumDirect) {
-        for (int i = 0; i < numSectors; i++)
-            dataSectors[i] = freeMap->Find();
+        int find_big_block = freeMap->myFind(numSectors);
+        if (find_big_block != -1) {
+            for (int i = 0; i < numSectors; i++)
+                dataSectors[i] = find_big_block + i;
+        }
+        else {
+            for (int i = 0; i < numSectors; i++)
+                dataSectors[i] = freeMap->Find();
+        }
     }
     else {
         for (int i = 0; i < NumDirect; i++) {
@@ -171,7 +178,9 @@ FileHeader::Print()
         for (i = 0; i < numSectors; i++) {
             printf("%d ", dataSectors[i]);
         }
+        printf("\n");
     }
+    
     else {
         for (i = 0; i < NumDirect - 1; i++) {
             printf("%d ", dataSectors[i]);
@@ -248,4 +257,23 @@ FileHeader::SetTime(char mode) {
         last_m_time[24] = '\0';
         break;
     }
+}
+
+bool
+FileHeader::Extend(BitMap *bitmap, int size) {
+    numBytes += size;
+    int oldSectors = numSectors;
+    numSectors = divRoundUp(numBytes, SectorSize);
+    if (oldSectors == numSectors) {
+        return true;
+    }
+    if (bitmap->NumClear() < numSectors - oldSectors) {
+        return false;
+    }
+    for (int i = oldSectors; i < numSectors; i++) {
+        dataSectors[i] = bitmap->Find();
+    }
+    printf("extend %d sectors\n", numSectors - oldSectors);
+    //printf("end length: %d\n", FileLength());
+    return true;
 }

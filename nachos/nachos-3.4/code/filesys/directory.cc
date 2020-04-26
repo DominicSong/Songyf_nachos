@@ -24,6 +24,11 @@
 #include "utility.h"
 #include "filehdr.h"
 #include "directory.h"
+#include <string.h>
+
+
+#define rootSector 	1
+#define NumDirEntries 		10
 
 //----------------------------------------------------------------------
 // Directory::Directory
@@ -39,8 +44,32 @@ Directory::Directory(int size)
 {
     table = new DirectoryEntry[size];
     tableSize = size;
-    for (int i = 0; i < tableSize; i++)
+    for (int i = 0; i < 2; i++) {
+        table[i].inUse = true;
+        table[i].sector = rootSector;
+        table[i].type = 0;
+    }
+    strcpy(table[0].name, ".");
+    strcpy(table[1].name, "..");
+    for (int i = 2; i < tableSize; i++) {
 	    table[i].inUse = FALSE;
+    }
+}
+
+Directory::Directory(int size, int sector, int dad_sector) {
+    table = new DirectoryEntry[size];
+    tableSize = size;
+    for (int i = 0; i < 2; i++) {
+        table[i].inUse = true;
+        table[i].type = 0;
+    }
+    table[0].sector = sector;
+    table[1].sector = dad_sector;
+    strcpy(table[0].name, ".");
+    strcpy(table[1].name, "..");
+    for (int i = 2; i < tableSize; i++) {
+	    table[i].inUse = FALSE;
+    }
 }
 
 //----------------------------------------------------------------------
@@ -91,9 +120,41 @@ int
 Directory::FindIndex(char *name)
 {
     //printf("I am finding %s\n", name);
-    for (int i = 0; i < tableSize; i++) {
-        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen)) {
-	        return i;
+    //List();
+    bool abs_path = false;
+    int str_p;
+    int len = strlen(name);
+    for (int i = 0; i < len; i++) {
+        if (name[i] == '/') {
+            abs_path = true;
+            str_p = i;
+            break;
+        }
+    }
+    if (abs_path) {
+        char *tmp_name = new char[len - str_p + 2];
+        strcpy(tmp_name, name + str_p + 1);
+        char *dir_name = new char[str_p + 2];
+        strncpy(dir_name, name, str_p);
+        int dir_idx = -1;
+        for (int i = 0; i < tableSize; i++) {
+            if (table[i].inUse && table[i].type == 0 && !strncmp(table[i].name, dir_name, FileNameMaxLen)) {
+                dir_idx = i;
+            }
+        }
+        OpenFile *next_dir = new OpenFile(table[dir_idx].sector);
+        Directory *next_dir_file = new Directory(NumDirEntries);
+        next_dir_file->FetchFrom(next_dir);
+        int res_idx = next_dir_file->FindIndex(tmp_name);
+        delete next_dir;
+        delete next_dir_file;
+        return res_idx;
+    }
+    else {
+        for (int i = 0; i < tableSize; i++) {
+            if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen)) {
+                return i;
+            }
         }
     }
     return -1;		// name not in directory
@@ -130,7 +191,7 @@ Directory::Find(char *name)
 //----------------------------------------------------------------------
 
 bool
-Directory::Add(char *name, int newSector)
+Directory::Add(char *name, int newSector, int type)
 { 
     if (FindIndex(name) != -1)
 	return FALSE;
@@ -138,10 +199,12 @@ Directory::Add(char *name, int newSector)
     for (int i = 0; i < tableSize; i++)
         if (!table[i].inUse) {
             table[i].inUse = TRUE;
-            strncpy(table[i].name, name, FileNameMaxLen); 
+            //strcpy(table[i].path, name); 
+            strncpy(table[i].name, getRealName(name), FileNameMaxLen);
             table[i].sector = newSector;
-        return TRUE;
-	}
+            table[i].type = type;
+            return TRUE;
+	    }
     return FALSE;	// no space.  Fix when we have extensible files.
 }
 
@@ -157,9 +220,9 @@ bool
 Directory::Remove(char *name)
 { 
     int i = FindIndex(name);
-
+    //printf("remove i: %d\n", i);
     if (i == -1)
-	return FALSE; 		// name not in directory
+	    return FALSE; 		// name not in directory
     table[i].inUse = FALSE;
     return TRUE;	
 }

@@ -61,6 +61,8 @@ extern int testnum;
 
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
+extern void CreateDir(char *name);
+extern void Test();
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
@@ -114,28 +116,29 @@ main(int argc, char **argv)
 		argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
-/*
+
 #ifdef USER_PROGRAM
 		//printf("shitshitshitshit\n");
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
             StartProcess(*(argv + 1));
             argCount = 2;
-        } else if (!strcmp(*argv, "-c")) {      // test the console
-	    if (argc == 1)
-	        ConsoleTest(NULL, NULL);
-	    else {
-		ASSERT(argc > 2);
-	        ConsoleTest(*(argv + 1), *(argv + 2));
-	        argCount = 3;
-	    }
-	    interrupt->Halt();		// once we start the console, then 
-					// Nachos will loop forever waiting 
-					// for console input
+        } 
+		else if (!strcmp(*argv, "-c")) {      // test the console
+			if (argc == 1)
+				ConsoleTest(NULL, NULL);
+			else {
+			ASSERT(argc > 2);
+				ConsoleTest(*(argv + 1), *(argv + 2));
+				argCount = 3;
+			}
+			interrupt->Halt();		// once we start the console, then 
+						// Nachos will loop forever waiting 
+						// for console input
 		}
 		
 #endif // USER_PROGRAM
-*/
+
 #ifdef FILESYS
 		//printf("file system onfff!\n");
 		if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
@@ -156,7 +159,12 @@ main(int argc, char **argv)
 				fileSystem->Print();
 		} else if (!strcmp(*argv, "-t")) {	// performance test
 				PerformanceTest();
+		} else if (!strcmp(*argv, "-mkdir")) {
+			CreateDir(*(argv + 1));
+		} else if (!strcmp(*argv, "-test")) {
+			Test();
 		}
+		
 #endif // FILESYS
 #ifdef NETWORK
         if (!strcmp(*argv, "-o")) {

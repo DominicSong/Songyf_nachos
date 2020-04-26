@@ -39,7 +39,7 @@ class DirectoryEntry {
     //int name_pos;
     //int name_len;
     int type; // 0 for folder, 1 for file
-    char path[100];
+    //char path[100];
 };
 
 // The following class defines a UNIX-like "directory".  Each entry in
@@ -56,6 +56,7 @@ class Directory {
   public:
     Directory(int size); 		// Initialize an empty directory
 					// with space for "size" files
+    Directory(int size, int sector, int dad_sector);
     ~Directory();			// De-allocate the directory
 
     void FetchFrom(OpenFile *file);  	// Init directory contents from disk
@@ -65,7 +66,7 @@ class Directory {
     int Find(char *name);		// Find the sector number of the 
 					// FileHeader for file: "name"
 
-    bool Add(char *name, int newSector);  // Add a file name into the directory
+    bool Add(char *name, int newSector, int type);  // Add a file name into the directory
 
     bool Remove(char *name);		// Remove a file from the directory
 
@@ -74,6 +75,52 @@ class Directory {
     void Print();			// Verbose print of the contents
 					//  of the directory -- all the file
 					//  names and their contents.
+    static char* getAbsDir(char *name) {
+        if (!absPath(name))
+            ASSERT(FALSE);
+        int len = strlen(name);
+        int str_p;
+        for (int i = len - 1; i > 0; i--) {
+            if (name[i] == '/') {
+                str_p = i;
+                break;
+            }
+        }
+        char *abs_path = new char[str_p + 1];
+        //printf("str_p : %d\n", str_p);
+        strncpy(abs_path, name, str_p);
+        abs_path[str_p] = '\0';
+        return abs_path;
+    }
+
+    static char* getRealName(char *name) {
+        if (absPath(name)) {
+          int len = strlen(name);
+          int str_p;
+          for (int i = len - 1; i > 0; i--) {
+              if (name[i] == '/') {
+                  str_p = i;
+                  break;
+              }
+          }
+          char *real_name = new char[len - str_p + 2];
+          strcpy(real_name, name + str_p + 1);
+          return real_name;
+        }
+        else {
+          return name;
+        }
+    }
+
+    static bool absPath(char *name) {
+        int len = strlen(name);
+        for (int i = len - 1; i > 0; i--) {
+            if (name[i] == '/') {
+                return true;
+            }
+        }
+        return false;
+    }
 
   private:
     int tableSize;			// Number of directory entries

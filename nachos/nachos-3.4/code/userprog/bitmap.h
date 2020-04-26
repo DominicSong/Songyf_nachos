@@ -43,6 +43,7 @@ class BitMap {
     int Find();            	// Return the # of a clear bit, and as a side
 				// effect, set the bit. 
 				// If no bits are clear, return -1.
+    int myFind(int size);
     int NumClear();		// Return the number of clear bits
 
     void Print();		// Print contents of bitmap

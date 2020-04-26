@@ -14,6 +14,17 @@
 #include "disk.h"
 #include "synch.h"
 
+#define cache_size 4
+
+class Cache {
+  public:
+    bool valid;
+    bool dirty;
+    int sector;
+    int cnt;
+    char data[SectorSize];
+};
+
 // The following class defines a "synchronous" disk abstraction.
 // As with other I/O devices, the raw physical disk is an asynchronous device --
 // requests to read or write portions of the disk return immediately,
@@ -41,6 +52,12 @@ class SynchDisk {
     void RequestDone();			// Called by the disk device interrupt
 					// handler, to signal that the
 					// current disk operation is complete.
+    void ReaderIn(int sector);
+    void ReaderOut(int sector);
+    void WriteBegin(int sector);
+    void WriteDone(int sector);
+
+    int vis_num[NumSectors];
 
   private:
     Disk *disk;		  		// Raw disk device
@@ -48,6 +65,10 @@ class SynchDisk {
 					// with the interrupt handler
     Lock *lock;		  		// Only one read/write request
 					// can be sent to the disk at a time
+    Semaphore *mutex[NumSectors];
+    int reader_num[NumSectors];
+    Lock *readerLock;
+    Cache cache[cache_size];
 };
 
 #endif // SYNCHDISK_H

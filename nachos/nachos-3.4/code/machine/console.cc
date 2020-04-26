@@ -23,6 +23,7 @@ static void ConsoleReadPoll(int c)
 static void ConsoleWriteDone(int c)
 { Console *console = (Console *)c; console->WriteDone(); }
 
+
 //----------------------------------------------------------------------
 // Console::Console
 // 	Initialize the simulation of a hardware console device.
@@ -55,6 +56,8 @@ Console::Console(char *readFile, char *writeFile, VoidFunctionPtr readAvail,
     putBusy = FALSE;
     incoming = EOF;
 
+    lock = new Lock("console");
+
     // start polling for incoming packets
     interrupt->Schedule(ConsoleReadPoll, (int)this, ConsoleTime, ConsoleReadInt);
 }
@@ -70,6 +73,7 @@ Console::~Console()
 	Close(readFileNo);
     if (writeFileNo != 1)
 	Close(writeFileNo);
+    delete lock;
 }
 
 //----------------------------------------------------------------------
@@ -127,10 +131,12 @@ Console::WriteDone()
 char
 Console::GetChar()
 {
-   char ch = incoming;
-
-   incoming = EOF;
-   return ch;
+    lock->Acquire();
+    char ch = incoming;
+    incoming = EOF;
+    (*readHandler)(handlerArg);	
+    lock->Release();
+    return ch;
 }
 
 //----------------------------------------------------------------------
@@ -142,9 +148,12 @@ Console::GetChar()
 void
 Console::PutChar(char ch)
 {
+    lock->Acquire();
     ASSERT(putBusy == FALSE);
     WriteFile(writeFileNo, &ch, sizeof(char));
     putBusy = TRUE;
     interrupt->Schedule(ConsoleWriteDone, (int)this, ConsoleTime,
 					ConsoleWriteInt);
+    WriteDone();
+    lock->Release();
 }

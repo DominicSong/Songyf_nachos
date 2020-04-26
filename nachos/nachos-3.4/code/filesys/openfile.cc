@@ -31,8 +31,10 @@ OpenFile::OpenFile(int sector)
 { 
     hdr = new FileHeader;
     hdr->FetchFrom(sector);
+    //printf("ssss %d\n", hdr->sectorNumber);
     //hdr->Print();
     seekPosition = 0;
+    synchDisk->vis_num[hdr->sectorNumber]++;
 }
 
 //----------------------------------------------------------------------
@@ -42,6 +44,7 @@ OpenFile::OpenFile(int sector)
 
 OpenFile::~OpenFile()
 {
+    synchDisk->vis_num[hdr->sectorNumber]--;
     delete hdr;
 }
 
@@ -75,17 +78,26 @@ OpenFile::Seek(int position)
 int
 OpenFile::Read(char *into, int numBytes)
 {
-   int result = ReadAt(into, numBytes, seekPosition);
-   seekPosition += result;
-   return result;
+    synchDisk->ReaderIn(hdr->sectorNumber);
+    int result = ReadAt(into, numBytes, seekPosition);
+    currentThread->Yield();
+    seekPosition += result;
+    synchDisk->ReaderOut(hdr->sectorNumber);
+    return result;
 }
 
 int
 OpenFile::Write(char *into, int numBytes)
 {
-   int result = WriteAt(into, numBytes, seekPosition);
-   seekPosition += result;
-   return result;
+    //printf("write: %d\n", numBytes);
+    synchDisk->WriteBegin(hdr->sectorNumber);
+    //printf("%s is writing!\n", currentThread->getName());
+    int result = WriteAt(into, numBytes, seekPosition);
+    currentThread->Yield();
+    seekPosition += result;
+    //printf("%s writing over!\n", currentThread->getName());
+    synchDisk->WriteDone(hdr->sectorNumber);
+    return result;
 }
 
 //----------------------------------------------------------------------
@@ -117,11 +129,15 @@ OpenFile::Write(char *into, int numBytes)
 int
 OpenFile::ReadAt(char *into, int numBytes, int position)
 {
+    
     int fileLength = hdr->FileLength();
+    //printf("Reading from sector: %d\n", hdr->sectorNumber);
+    //printf("Reading %d bytes at %d, from file of length %d.\n", 	
+			//numBytes, position, fileLength);
     int i, firstSector, lastSector, numSectors;
     char *buf;
 
-    if ((numBytes <= 0) || (position >= fileLength))
+    if ((numBytes <= 0) || (position > fileLength))
     	return 0; 				// check request
     if ((position + numBytes) > fileLength)		
 	numBytes = fileLength - position;
@@ -156,11 +172,22 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     int i, firstSector, lastSector, numSectors;
     bool firstAligned, lastAligned;
     char *buf;
-
-    if ((numBytes <= 0) || (position >= fileLength))
-	return 0;				// check request
-    if ((position + numBytes) > fileLength)
-	numBytes = fileLength - position;
+    //printf("file length %d\n", fileLength);
+    //printf("position %d\n", position);
+    if ((numBytes <= 0) || (position > fileLength))
+	    return 0;				// check request
+    if ((position + numBytes) > fileLength) {
+	    //numBytes = fileLength - position;
+        //printf("shit!: %d\n", position + numBytes);
+        OpenFile *freeMapFile = new OpenFile(0);
+        BitMap *freeMap = new BitMap(NumSectors);
+        freeMap->FetchFrom(freeMapFile);
+        hdr->Extend(freeMap, position + numBytes - fileLength);
+        hdr->WriteBack(hdr->sectorNumber);
+        freeMap->WriteBack(freeMapFile);
+        delete freeMapFile;
+        delete freeMap;
+    }
     DEBUG('f', "Writing %d bytes at %d, from file of length %d.\n", 	
 			numBytes, position, fileLength);
 
@@ -205,7 +232,9 @@ OpenFile::Length()
     return hdr->FileLength(); 
 }
 
-void
+int
 OpenFile::Print() {
-    hdr->Print();
+    //hdr->Print();
+    //printf("hdr sector: %d\n", hdr->sectorNumber);
+    return hdr->sectorNumber;
 }

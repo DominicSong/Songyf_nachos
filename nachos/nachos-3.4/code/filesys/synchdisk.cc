@@ -16,6 +16,7 @@
 
 #include "copyright.h"
 #include "synchdisk.h"
+#include "system.h"
 
 //----------------------------------------------------------------------
 // DiskRequestDone
@@ -45,6 +46,15 @@ SynchDisk::SynchDisk(char* name)
     semaphore = new Semaphore("synch disk", 0);
     lock = new Lock("synch disk lock");
     disk = new Disk(name, DiskRequestDone, (int) this);
+    for (int i = 0; i < NumSectors; i++) {
+        mutex[i] = new Semaphore("file mutex", 1);
+        reader_num[i] = 0;
+        vis_num[i] = 0;
+    }
+    for (int i = 0; i < cache_size; i++) {
+        cache[i].valid = false;
+    }
+    readerLock = new Lock("reader lock");
 }
 
 //----------------------------------------------------------------------
@@ -58,6 +68,10 @@ SynchDisk::~SynchDisk()
     delete disk;
     delete lock;
     delete semaphore;
+    for (int i = 0; i < NumSectors; i++) {
+        delete mutex[i];
+    }
+    delete readerLock;
 }
 
 //----------------------------------------------------------------------
@@ -72,8 +86,50 @@ SynchDisk::~SynchDisk()
 void
 SynchDisk::ReadSector(int sectorNumber, char* data)
 {
+    
     lock->Acquire();			// only one disk I/O at a time
-    disk->ReadRequest(sectorNumber, data);
+    //disk->ReadRequest(sectorNumber, data);
+    
+    int find_pos = -1;
+    for (int i = 0; i < cache_size; i++) {
+        if (cache[i].valid && cache[i].sector == sectorNumber) {
+            find_pos = i;
+            break;
+        }
+    }
+    if (find_pos == -1) {
+        disk->ReadRequest(sectorNumber, data);
+        int swap = -1;
+        for (int i = 0; i < cache_size; i++) {
+            if (cache[i].valid) {
+                swap = i;
+                break;
+            }
+        }
+        if (swap == -1) {
+            int lru_min = cache[0].cnt;
+            int min_pos = 0;
+            for (int i = 0; i < cache_size; i++) {
+                if (cache[i].cnt < lru_min) {
+                    lru_min = cache[i].cnt;
+                    min_pos = i;
+                }
+            }
+            swap = min_pos;
+        }
+        cache[swap].valid = true;
+        cache[swap].dirty = 0;
+        cache[swap].sector = sectorNumber;
+        cache[swap].cnt = stats->totalTicks;
+        bcopy(data, cache[swap].data, SectorSize);
+    }
+    else {
+        printf("Cache hit!\n");
+        cache[find_pos].cnt = stats->totalTicks;
+        bcopy(cache[find_pos].data, data, SectorSize);
+        disk->HandleInterrupt();
+    }
+    
     semaphore->P();			// wait for interrupt
     lock->Release();
 }
@@ -94,6 +150,11 @@ SynchDisk::WriteSector(int sectorNumber, char* data)
     disk->WriteRequest(sectorNumber, data);
     semaphore->P();			// wait for interrupt
     lock->Release();
+    for (int i = 0; i < cache_size; i++) {
+        if (cache[i].sector == sectorNumber) {
+            cache[i].valid = false;
+        }
+    }
 }
 
 //----------------------------------------------------------------------
@@ -106,4 +167,36 @@ void
 SynchDisk::RequestDone()
 { 
     semaphore->V();
+}
+
+
+void SynchDisk::ReaderIn(int sector) {
+    readerLock->Acquire();
+    reader_num[sector]++;
+    if (reader_num[sector] == 1) {
+        mutex[sector]->P();
+    }
+    //printf("%s ", currentThread->getName());
+    //printf("Reader in! Count of Reader: %d\n", reader_num[sector]);
+    readerLock->Release();
+}
+
+void SynchDisk::ReaderOut(int sector) {
+    readerLock->Acquire();
+    reader_num[sector]--;
+    if (reader_num[sector] == 0) {
+        mutex[sector]->V();
+    }
+    //printf("%s ", currentThread->getName());
+    //printf("Reader out! Count of Reader: %d\n", reader_num[sector]);
+    readerLock->Release();
+}
+
+
+void SynchDisk::WriteBegin(int sector) {
+    mutex[sector]->P();
+}
+
+void SynchDisk::WriteDone(int sector) {
+    mutex[sector]->V();
 }
