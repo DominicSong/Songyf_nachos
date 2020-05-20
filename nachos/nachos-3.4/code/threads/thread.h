@@ -67,6 +67,14 @@ extern void ThreadPrint(int arg);
 
 extern void* thread_pointer[128];
 
+class Message {
+  public:
+    bool valid;
+    char* data;
+    int size;
+    int des;
+};
+
 // The following class defines a "thread control block" -- which
 // represents a single thread of execution.
 //
@@ -150,6 +158,13 @@ class Thread {
       }
       printf("----------------------------------\n");
     }
+
+    Thread* child[10];
+    Thread* father;
+
+    bool SendMsg(char* buffer, int des);
+    bool GetMsg(char* buffer);
+
 
   private:
     // some of the private data for this class is listed above

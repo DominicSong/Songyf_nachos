@@ -27,6 +27,7 @@
 
 void* thread_pointer[128];
 
+
 //----------------------------------------------------------------------
 // Thread::Thread
 // 	Initialize a thread control block, so that we can then call
@@ -47,6 +48,11 @@ Thread::Thread(char* threadName)
     uid = 0;
     priority = 0;
     //(void) interrupt->SetLevel(oldLevel);
+
+    for (int i = 0; i < 10; i++) {
+        child[i] = NULL;
+    }
+    father = this;
 
     stackTop = NULL;
     stack = NULL;
@@ -269,6 +275,43 @@ char* getThreadStatus(ThreadStatus status, char *s) {
       break;
   }
   return s;
+}
+
+bool Thread::SendMsg(char* buffer, int des) {
+    int msg_idx = -1;
+    for (int i = 0; i < 20; i++) {
+        if (!msg[i].valid) {
+            msg_idx = i;
+            break;
+        }
+    }
+    if (msg_idx == -1) {
+        return false;
+    }
+    printf("You are sending a message: %s\n", buffer);
+    //msg[msg_idx].data = buffer;
+    strncpy(msg[msg_idx], buffer, strlen(buffer));
+    msg[msg_idx].des = des;
+    msg[msg_idx].size = strlen(buffer);
+    msg[msg_idx].valid = true;
+    printf("Message send success!\n");
+    return true;
+}
+
+bool Thread::GetMsg(char* buffer) {
+    printf("You are getting a message\n");
+    int tmp_tid = currentThread->getTid();
+    bool flag = false;
+    for (int i = 0; i < 20; i++) {
+        if (msg[i].valid && msg[i].des == tmp_tid) {
+            strncpy(buffer, msg[i].data, msg[i].size);
+            msg[i].valid = false;
+            flag = true;
+            break;
+        }
+    }
+    printf("Message get success!\n");
+    return flag;
 }
 
 //----------------------------------------------------------------------

@@ -127,7 +127,7 @@ void Test() {
 #define FileName 	"TestFile"
 #define Contents 	"1234567890"
 #define ContentSize 	strlen(Contents)
-#define FileSize 	((int)(ContentSize * 20))
+#define FileSize 	((int)(ContentSize * 50))
 
 static void 
 FileWrite()
@@ -202,7 +202,7 @@ PerformanceTest()
     FileWrite();
     //Thread* thread1 = new Thread("another reader");
     //thread1->Fork(read, 1);
-    FileRead();
+    //FileRead();
     if (!fileSystem->Remove(FileName)) {
       printf("Perf test: unable to remove %s\n", FileName);
       return;

@@ -12,6 +12,7 @@
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
 
+Message msg[20];
 Thread *currentThread;			// the thread we are running now
 Thread *threadToBeDestroyed;  		// the thread that just finished
 Scheduler *scheduler;			// the ready list
@@ -147,6 +148,10 @@ Initialize(int argc, char **argv)
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread
     // object to save its state. 
+
+    for (int i = 0; i < 20; i++) {
+        msg[i].valid = false;
+    }
 
     Thread::init();
     currentThread = Thread::createThread("main");		

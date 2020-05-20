@@ -273,7 +273,12 @@ FileHeader::Extend(BitMap *bitmap, int size) {
     for (int i = oldSectors; i < numSectors; i++) {
         dataSectors[i] = bitmap->Find();
     }
-    printf("extend %d sectors\n", numSectors - oldSectors);
+    //printf("extend %d sectors\n", numSectors - oldSectors);
     //printf("end length: %d\n", FileLength());
     return true;
+}
+
+void
+FileHeader::SetLength(int size) {
+    numBytes = size;
 }

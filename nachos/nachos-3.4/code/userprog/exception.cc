@@ -28,8 +28,56 @@
 #include "translate.h"
 #include <stdio.h>
 #include "openfile.h"
+#include "bitmap.h"
+#include "synchdisk.h"
+#include "filesys.h"
+#include "filehdr.h"
+#include "openfile.h"
 
 #define LRU
+
+void exec_func(int name) {
+    char *filename = (char*) name;
+    OpenFile *executable = fileSystem->Open(filename);
+    AddrSpace *space;
+
+    if (executable == NULL) {
+        printf("Unable to open file %s\n", filename);
+        return;
+    }
+    space = new AddrSpace(executable);    
+    currentThread->space = space;
+
+    delete executable;			// close file
+
+    space->InitRegisters();		// set the initial register values
+    space->RestoreState();		// load page table register
+
+    printf("Exec thread is running...\n");
+    machine->Run();			// jump to the user progam
+}
+
+class ThreadState {
+    public:
+    int pc;
+    AddrSpace* space;
+};
+
+void fork_func(int s) {
+    ThreadState* state = (ThreadState*) s;
+    AddrSpace* tmp = state->space;
+    AddrSpace* space = new AddrSpace(*tmp);
+    currentThread->space = space;
+
+    int cur_pc = state->pc;
+    machine->WriteRegister(PCReg, cur_pc);
+    machine->WriteRegister(NextPCReg, cur_pc + 4);
+
+    currentThread->SaveUserState();
+    printf("Prepare to run the fork thread\n");
+    machine->Run();
+}
+
 
 //----------------------------------------------------------------------
 // ExceptionHandler
@@ -64,21 +112,248 @@ ExceptionHandler(ExceptionType which)
         interrupt->Halt();
     }
 
+    else if ((which == SyscallException) && (type == SC_Create)) {
+        int name_pos = machine->ReadRegister(4);
+        int v;
+        int name_len = 0;
+        char name[name_len + 1];
+        int i = 0;
+        while (1) {
+            machine->ReadMem(name_pos, 1, &v);
+            name_pos++;
+            name_len++;
+            if (v == 0) break;
+            else {
+                name[i] = (char)v;
+                i++;
+            }
+        }
+        name[name_len] = '\0';
+        printf("Creating file: %s\n", name);
+        fileSystem->Create(name, 0);
+        printf("Creating success!\n");
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Open)) {
+        int name_pos = machine->ReadRegister(4);
+        int v;
+        int name_len = 0;
+        char name[name_len + 1];
+        int i = 0;
+        while (1) {
+            machine->ReadMem(name_pos, 1, &v);
+            name_pos++;
+            name_len++;
+            if (v == 0) break;
+            else {
+                name[i] = (char)v;
+                i++;
+            }
+        }
+        name[name_len] = '\0';
+        printf("Opening file: %s\n", name);
+        OpenFile *openfile = fileSystem->Open(name);
+        if (openfile == NULL) {
+            printf("Open file failed, file name: %s\n", name);
+        }
+        else {
+            machine->WriteRegister(2, (int)openfile);
+            printf("Open success!\n");
+        }
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Read)) {
+        int buff = machine->ReadRegister(4);
+        int size = machine->ReadRegister(5);
+        int id = machine->ReadRegister(6);
+
+        OpenFile* tmpfile = (OpenFile*) id;
+        if (tmpfile == NULL) {
+            printf("File not exist\n");
+        }
+        else {
+            printf("Begin reading...\n");
+            char tmp_buffer[size];
+            int tmp, i;
+            tmpfile->Read(tmp_buffer, size);
+            tmp_buffer[size] = '\0';
+            for (i = 0; i < size; i++) {
+                tmp = (int)tmp_buffer[i];
+                machine->WriteMem(buff + i, 1, tmp);
+            }
+            machine->WriteRegister(2, i);
+            printf("Read success. Content is %s\n", tmp_buffer);
+        }
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Write)) {
+        int buff = machine->ReadRegister(4);
+        int size = machine->ReadRegister(5);
+        int id = machine->ReadRegister(6);
+
+        char tmp_buffer[size];
+        int tmp;
+        for (int i = 0; i < size; i++) {
+            machine->ReadMem(buff + i, 1, &tmp);
+            tmp_buffer[i] = (char)tmp;
+        }
+
+        OpenFile* tmpfile = (OpenFile*) id;
+        
+        if (tmpfile == NULL) {
+            printf("File not exist\n");
+        }
+        else {
+            printf("Begin writing...\n");
+            tmpfile->Write(tmp_buffer, size);
+            printf("Write success. Content is %s\n", tmp_buffer);
+        }
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Close)) {
+        int file = machine->ReadRegister(4);
+        OpenFile* tmpfile = (OpenFile*) file;
+        if (tmpfile == NULL) {
+            printf("Cannot close file\n");
+        }
+        else {
+            delete tmpfile;
+            printf("Close file success!\n");
+        }
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Exec)) {
+        int name_pos = machine->ReadRegister(4);
+        int v;
+        int name_len = 0;
+        char name[name_len + 1];
+        int i = 0;
+        while (1) {
+            machine->ReadMem(name_pos, 1, &v);
+            //printf("hhhh %c\n", (char)v);
+            name_pos++;
+            //name_len++;
+            if ((char)v == '\0') break;
+            else {
+                name[i] = (char)v;
+                i++;
+            }
+        }
+        name[i] = '\0';
+        //printf("name: %s\n", name);
+
+        Thread* new_thread = new Thread("new thread");
+        for (i = 0; i < 10; i++) {
+            if (currentThread->child[i] == NULL) {
+                currentThread->child[i] = new_thread;
+                machine->WriteRegister(2, (int)new_thread);
+                break;
+            }
+            if (i == 9 && currentThread->child != NULL) {
+                printf("Exec fail!\n");
+                machine->PCAdvance();
+                return;
+            }
+        }
+        new_thread->father = currentThread;
+        new_thread->Fork(exec_func, (int)name);
+        currentThread->Yield();
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Fork)) {
+        int cur_pc = machine->ReadRegister(4);
+        ThreadState* state = new ThreadState;
+        state->pc = cur_pc;
+        state->space = currentThread->space;
+
+        Thread* new_thread = new Thread("new thread");
+        for (int i = 0; i < 10; i++) {
+            if (currentThread->child[i] == NULL) {
+                currentThread->child[i] = new_thread;
+                machine->WriteRegister(2, (int)new_thread);
+                break;
+            }
+            if (i == 9 && currentThread->child != NULL) {
+                printf("Fork fail!\n");
+                machine->PCAdvance();
+                return;
+            }
+        }
+        new_thread->father = currentThread;
+
+        printf("Fork a new thread\n");
+        new_thread->Fork(fork_func, (int)state);
+        currentThread->Yield();
+        printf("I am main thread. I am back!\n");
+        machine->PCAdvance();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Yield)) {
+        machine->PCAdvance();
+        printf("I am yield\n");
+        currentThread->Yield();
+    }
+
+    else if ((which == SyscallException) && (type == SC_Join)) {
+        int id = machine->ReadRegister(4);
+        int i;
+        bool found;
+
+        Thread* child = (Thread*) id;
+        for (i = 0; i < 10; i++) {
+            if (currentThread->child[i] == child) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            printf("Cannot find thread\n");
+            machine->PCAdvance();
+            return;
+        }
+        while (currentThread->child[i] != NULL) {
+            //printf("I am waiting for my child %d\n", i);
+            currentThread->Yield();
+        }
+        printf("My child is finished\n");
+        machine->PCAdvance();
+    }
+
     else if ((which == SyscallException) && (type == SC_Exit)) {
+        /*
         for (int i = 0; i < machine->pageTableSize; i++) {
             if (machine->pageTable[i].valid == TRUE) {
                 int idx = machine->pageTable[i].physicalPage;
                 machine->bitmap->clear(idx);
             }
-        }
+        }*/
 
         //printf("TLB hits: %d\n", machine->TLBhit);
         //printf("TLB miss: %d\n", machine->TLBmiss);
         //float rate = (float)machine->TLBhit / (machine->TLBmiss + machine->TLBhit);
         //printf("TLB hit rate: %f\n", rate);
         //machine->end = 1;
-        //currentThread->Finish();
-        interrupt->Halt();
+        if (currentThread->father == currentThread) {
+            machine->PCAdvance();
+        }
+        else {
+            Thread* father = currentThread->father;
+            for (int i = 0; i < 10; i++) {
+                if (father->child[i] == currentThread) {
+                    //printf("ssssssssssssss %d\n", i);
+                    father->child[i] = NULL;
+                    break;
+                }
+            }
+            currentThread->Finish();
+        }
+        //interrupt->Halt();
     }
 
     else if (which == PageFaultException) {
@@ -104,7 +379,7 @@ ExceptionHandler(ExceptionType which)
                     }
                 }
             }
-            printf("PageFault vpn %d pos %d\n", vpn, pos);
+            //printf("PageFault vpn %d pos %d\n", vpn, pos);
             openfile->ReadAt(&(machine->mainMemory[pos * PageSize]), PageSize, vpn * PageSize);
             machine->pageTable[pos].valid = TRUE;
             machine->pageTable[pos].virtualPage = vpn;

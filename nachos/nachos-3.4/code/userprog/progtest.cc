@@ -71,7 +71,6 @@ StartProcess(char *filename)
     */
     printf("Thread 1 is running...\n");
     machine->Run();			// jump to the user progam
-    printf("Thread 1 is ended...\n");
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits
 					// by doing the syscall "exit"

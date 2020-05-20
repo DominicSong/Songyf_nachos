@@ -124,7 +124,7 @@ SynchDisk::ReadSector(int sectorNumber, char* data)
         bcopy(data, cache[swap].data, SectorSize);
     }
     else {
-        printf("Cache hit!\n");
+        //printf("Cache hit!\n");
         cache[find_pos].cnt = stats->totalTicks;
         bcopy(cache[find_pos].data, data, SectorSize);
         disk->HandleInterrupt();

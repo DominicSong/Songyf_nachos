@@ -183,7 +183,6 @@ bool
 FileSystem::Create(char *name, int initialSize)
 {
     // if initialSize == -1, it means that we are creating a dir
-    if (directoryFile->Print() != 1) printf("fuuuuuuuuuuuuuuck you!!!!!!!!!!!!!\n");
     Directory *directory;
     BitMap *freeMap;
     FileHeader *hdr;
@@ -320,7 +319,6 @@ FileSystem::Create(char *name, int initialSize)
 OpenFile *
 FileSystem::Open(char *name)
 { 
-    if (directoryFile->Print() != 1) printf("fuuuuuuuuuuuuuuck you!!!!!!!!!!!!!\n");
     Directory *directory = new Directory(NumDirEntries);
     OpenFile *openFile = NULL;
     int dir_sector, sector;
@@ -475,4 +473,41 @@ FileSystem::Print()
     delete dirHdr;
     delete freeMap;
     delete directory;
-} 
+}
+
+int FileSystem::Writepipe(char* data, int size, char* name) {
+    if (!Create(name, 0)) {
+        return -1;
+    }
+
+    OpenFile* pipefile = Open(name);
+    printf("You are writing in a pipe: %s\n", name);
+    size = pipefile->Write(data, size);
+    pipefile->hdr->SetLength(size);
+    pipefile->hdr->WriteBack(pipefile->hdr->sectorNumber);
+    
+    delete pipefile;
+    printf("Pipe writing success!\n");
+    return size;
+}
+
+int FileSystem::Readpipe(char *buffer, char* name) {
+    OpenFile* pipefile = Open(name);
+
+    if (pipefile == NULL) {
+        return -1;
+    }
+    int size = pipefile->hdr->FileLength();
+
+    if (size == 0) {
+        delete pipefile;
+        return 0;
+    }
+    printf("You are reading in a pipe: %s\n", name);
+    pipefile->Seek(0);
+    size = pipefile->Read(buffer, size);
+    delete pipefile;
+    Remove(name);
+    printf("Pipe reading success!\n");
+    return size;
+}

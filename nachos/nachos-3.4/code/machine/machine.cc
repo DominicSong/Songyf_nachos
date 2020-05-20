@@ -220,6 +220,14 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
     }
 
+
+void Machine::PCAdvance() {
+    WriteRegister(PrevPCReg, registers[PCReg]);
+    WriteRegister(PCReg, registers[PCReg] + sizeof(int));
+    WriteRegister(NextPCReg, registers[NextPCReg] + sizeof(int));
+}
+
+
 Bitmap::Bitmap() {
     for (int i = 0; i < NumPhysPages; i++) {
         map[i] = 0;
@@ -237,12 +245,12 @@ int Bitmap::find() {
     if (out == -1)
         return out;
     map[out] = 1;
-    printf("Page %d is allocated\n", out);
+    //printf("Page %d is allocated\n", out);
     return out;
 }
 
 void Bitmap::clear(int idx) {
     ASSERT(map[idx] == 1);
-    printf("Page %d is cleared\n", idx);
+    //printf("Page %d is cleared\n", idx);
     map[idx] = 0;
 }

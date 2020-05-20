@@ -197,6 +197,46 @@ ThreadTest4() {
     currentThread->Yield();
 }
 */
+/*
+void TestChild(int n) {
+    char data[10];
+    int len = fileSystem->Readpipe(data, "test pipe");
+    data[len] = '\0';
+    printf("I am child, receive: %s\n", data);
+}
+
+void TestPipe() {
+    char input[10];
+    strcpy(input, "hello");
+    Thread* thread = new Thread("Child");
+    fileSystem->Writepipe(input, 5, "test pipe");
+    thread->Fork(TestChild, 0);
+    printf("I am main thread, send: %s\n", input);
+    currentThread->Yield();
+}
+*/
+
+void TestMsgChild(int n) {
+    char data[10];
+    currentThread->GetMsg(data);
+    printf("I am child, receive: %s\n", data);
+    currentThread->GetMsg(data);
+    printf("I am child, receive: %s\n", data);
+}
+
+void TestMsg() {
+    char input[10];
+    strcpy(input, "hello");
+    Thread* thread = new Thread("Child");
+    printf("I am main thread, send msg: %s\n", input);
+    currentThread->SendMsg(input, thread->getTid());
+    char input2[10];
+    strcpy(input2, "world");
+    printf("I am main thread, send msg: %s\n", input2);
+    currentThread->SendMsg(input2, thread->getTid());
+    thread->Fork(TestMsgChild, 0);
+    currentThread->Yield();
+}
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
@@ -207,6 +247,7 @@ ThreadTest()
 {
     switch (testnum) {
     case 1:
+    TestMsg();
 	//ThreadTest4();
     //Thread::ts();
 	break;

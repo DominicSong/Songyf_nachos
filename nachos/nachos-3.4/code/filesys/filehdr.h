@@ -61,6 +61,8 @@ class FileHeader {
 
     bool Extend(BitMap *bitmap, int fileSize);
 
+    void SetLength(int size);
+
   private:
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file

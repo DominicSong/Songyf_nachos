@@ -58,7 +58,7 @@ class FileSystem {
 
 	  if (fileDescriptor == -1) return NULL;
 	  return new OpenFile(fileDescriptor);
-      }
+    }
 
     bool Remove(char *name) { return Unlink(name) == 0; }
 
@@ -84,6 +84,10 @@ class FileSystem {
     void List();			// List all the files in the file system
 
     void Print();			// List all the files and their contents
+
+	int Writepipe(char* data, int size, char* name);
+
+	int Readpipe(char *buffer, char* name);
 
   private:
 	OpenFile* freeMapFile;		// Bit map of free disk blocks,
